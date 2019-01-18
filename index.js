@@ -9,6 +9,11 @@ var mdns = require('mdns-js');
 var blue = require("bluetoothctl");
 var fs = require('fs');
 
+var defaultInputId = "plughw:1,0";
+var defaultOutputId = "airplay_192.168.0.109_7000";
+var isDefaultInputEnabled = true;
+var isDefaultOutputEnabled = true;
+
 // Create ToVoid and FromVoid streams so we always have somewhere to send to and from.
 util.inherits(ToVoid, stream.Writable);
 function ToVoid () {
@@ -89,6 +94,16 @@ function updateAllInputs(){
   ];
   availableInputs = defaultInputs.concat(availablePcmInputs, availableBluetoothInputs);
   // todo only emit if updated
+  if (isDefaultInputEnabled === true) {
+    var isInputAvailable = availableInputs
+      .map(function(input) { return input.id; })
+      .indexOf(defaultInputId);
+
+    if (isInputAvailable > -1) {
+      switchInput(defaultInputId);
+    }
+  }
+
   io.emit('available_inputs', availableInputs);
 }
 updateAllInputs();
@@ -103,13 +118,23 @@ function updateAllOutputs(){
   ];
   availableOutputs = defaultOutputs.concat(availablePcmOutputs, availableAirplayOutputs);
   // todo only emit if updated
+  if (isDefaultOutputEnabled === true) {
+    var isOutputAvailable = availableOutputs
+      .map(function(output) { return output.id; })
+      .indexOf(defaultOutputId);
+
+    if (isOutputAvailable > -1) {
+      switchOutput(defaultOutputId);
+    }
+  }
+
   io.emit('available_outputs', availableOutputs);
 }
 updateAllOutputs();
 
 var browser = mdns.createBrowser(mdns.tcp('raop'));
 browser.on('ready', function () {
-    browser.discover(); 
+    browser.discover();
 });
 browser.on('update', function (data) {
   // console.log("service up: ", data);
@@ -159,11 +184,67 @@ function cleanupCurrentOutput(){
   }
 }
 
+function switchInput(msg) {
+  console.log('switch_input: ' + msg);
+  currentInput = msg;
+  cleanupCurrentInput();
+  if (msg === "void"){
+    inputStream = new FromVoid();
+    inputStream.pipe(outputStream);
+  }
+  if (msg !== "void"){
+    arecordInstance = spawn("arecord", [
+      '-D', msg,
+      '-c', "2",
+      '-f', "S16_LE",
+      '-r', "44100"
+    ]);
+    inputStream = arecordInstance.stdout;
+
+    inputStream.pipe(outputStream);
+  }
+}
+
+function switchOutput(msg) {
+  console.log('switch_output: ' + msg);
+  currentOutput = msg;
+  cleanupCurrentOutput();
+  if (msg.startsWith("airplay")){
+    var split = msg.split("_");
+    var host = split[1];
+    var port = split[2];
+    console.log('adding device: ' + host + ':' + port);
+    airplayDevice = airtunes.add(host, {port: port, volume: volume});
+    airplayDevice.on('status', function(status) {
+      console.log('airplay status: ' + status);
+      if(status === 'ready'){
+        outputStream = airtunes;
+        inputStream.pipe(outputStream);
+      }
+    });
+  }
+  if (msg.startsWith("plughw:")){
+    aplayInstance = spawn("aplay", [
+      '-D', msg,
+      '-c', "2",
+      '-f', "S16_LE",
+      '-r', "44100"
+    ]);
+
+    outputStream = aplayInstance.stdin;
+    inputStream.pipe(outputStream);
+  }
+  if (msg === "void"){
+    outputStream = new ToVoid();
+    inputStream.pipe(outputStream);
+  }
+}
+
 app.get('/', function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
 
-io.on('connection', function(socket){
+io.on('connection', function(socket) {
   console.log('a user connected');
   // set current state
   socket.emit('available_inputs', availableInputs);
@@ -171,11 +252,11 @@ io.on('connection', function(socket){
   socket.emit('switched_input', currentInput);
   socket.emit('switched_output', currentOutput);
   socket.emit('changed_output_volume', volume);
-  
+
   socket.on('disconnect', function(){
     console.log('user disconnected');
   });
-  
+
   socket.on('change_output_volume', function(msg){
     console.log('change_output_volume: ', msg);
     volume = msg;
@@ -195,62 +276,14 @@ io.on('connection', function(socket){
     }
     io.emit('changed_output_volume', msg);
   });
-  
-  socket.on('switch_output', function(msg){
-    console.log('switch_output: ' + msg);
-    currentOutput = msg;
-    cleanupCurrentOutput();
-    if (msg.startsWith("airplay")){
-      var split = msg.split("_");
-      var host = split[1];
-      var port = split[2];
-      console.log('adding device: ' + host + ':' + port);
-      airplayDevice = airtunes.add(host, {port: port, volume: volume});
-      airplayDevice.on('status', function(status) {
-        console.log('airplay status: ' + status);
-        if(status === 'ready'){
-          outputStream = airtunes;
-          inputStream.pipe(outputStream);
-        }
-      });
-    }
-    if (msg.startsWith("plughw:")){
-      aplayInstance = spawn("aplay", [
-        '-D', msg,
-        '-c', "2",
-        '-f', "S16_LE",
-        '-r', "44100"
-      ]);
 
-      outputStream = aplayInstance.stdin;
-      inputStream.pipe(outputStream);
-    }
-    if (msg === "void"){
-      outputStream = new ToVoid();
-      inputStream.pipe(outputStream);
-    }
+  socket.on('switch_output', function(msg){
+    switchOutput(msg);
     io.emit('switched_output', msg);
   });
 
   socket.on('switch_input', function(msg){
-    console.log('switch_input: ' + msg);
-    currentInput = msg;
-    cleanupCurrentInput();
-    if (msg === "void"){
-      inputStream = new FromVoid();
-      inputStream.pipe(outputStream);
-    }
-    if (msg !== "void"){
-      arecordInstance = spawn("arecord", [
-        '-D', msg,
-        '-c', "2",
-        '-f', "S16_LE",
-        '-r', "44100"
-      ]);
-      inputStream = arecordInstance.stdout;
-
-      inputStream.pipe(outputStream);
-    }
+    switchInput(msg);
     io.emit('switched_input', msg);
   });
 });
