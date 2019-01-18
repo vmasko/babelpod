@@ -10,9 +10,12 @@ var blue = require("bluetoothctl");
 var fs = require('fs');
 
 var defaultInputId = "plughw:1,0";
-var defaultOutputId = "airplay_192.168.0.109_7000";
+var defaultOutputId = "plughw:0,1";
 var isDefaultInputEnabled = true;
 var isDefaultOutputEnabled = true;
+
+var shouldSwitchDefaultInput = true;
+var shouldSwitchDefaultOutput = true;
 
 // Create ToVoid and FromVoid streams so we always have somewhere to send to and from.
 util.inherits(ToVoid, stream.Writable);
@@ -99,8 +102,9 @@ function updateAllInputs(){
       .map(function(input) { return input.id; })
       .indexOf(defaultInputId);
 
-    if (isInputAvailable > -1) {
+    if (shouldSwitchDefaultInput && isInputAvailable > -1) {
       switchInput(defaultInputId);
+      shouldSwitchDefaultInput = false;
     }
   }
 
@@ -123,8 +127,9 @@ function updateAllOutputs(){
       .map(function(output) { return output.id; })
       .indexOf(defaultOutputId);
 
-    if (isOutputAvailable > -1) {
+    if (shouldSwitchDefaultOutput && isOutputAvailable > -1) {
       switchOutput(defaultOutputId);
+      shouldSwitchDefaultOutput = false;
     }
   }
 
