@@ -4,6 +4,13 @@
   <title>BabelPod</title>
   <meta name="viewport" content="width=device-width; initial-scale=1.5" />
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <link rel="apple-touch-icon" sizes="180x180" href="public/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="public/favicon-16x16.png">
+  <link rel="manifest" href="public/site.webmanifest">
+  <link rel="mask-icon" href="public/safari-pinned-tab.svg" color="#5bbad5">
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="theme-color" content="#ffffff">
   <style>
     input.slider {
       width: 100%;
@@ -108,75 +115,75 @@
           </div>
         </div>
 
-        <!-- <div class='form-group'>
+        <div class='form-group'>
           <label>System</label>
           <br>
-          <button class="btn btn-success">Reboot</button>
-          <button class="btn btn-primary">Shutdown</button>
-        </div> -->
+          <button id="shutdown" class="btn btn-warning">Shutdown</button>
+          <button id="restart" class="btn btn-primary">Restart</button>
+        </div>
       </div>
     </div>
   </div>
-  <script src="/socket.io/socket.io.js"></script>
+  <!-- <script src="/socket.io/socket.io.js"></script> -->
   <script>
-    var socket = io();
-    var currentInput = "void";
-    var currentOutput = "void";
-    socket.on('switched_input', function(newInput){
-      console.log('switched_input', newInput);
-      if (currentInput !== newInput){
-        currentInput = newInput;
-        var inputEl = document.getElementById('input');
-        inputEl.value = newInput;
-      };
-    });
-    socket.on('switched_output', function(newOutput){
-      console.log('switched_output', newOutput);
-      if (currentOutput !== newOutput){
-        currentOutput = newOutput;
-        var outputEl = document.getElementById('output');
-        outputEl.value = newOutput;
-      }
-    });
-    socket.on('changed_output_volume', function(volume){
-      console.log('changed_output_volume', volume);
-      var outputVolumeEl = document.getElementById('outputVolume');
-      outputVolumeEl.value = volume;
-    });
-    socket.on('available_inputs', function(inputs){
-      console.log('available_inputs', inputs);
-      var inputEl = document.getElementById('input');
-      // remove current values
-      while (inputEl.firstChild) {
-        inputEl.removeChild(inputEl.firstChild);
-      }
-      for (var input of inputs){
-        var newOption = document.createElement('option');
-        newOption.innerText = input.name;
-        newOption.setAttribute('value', input.id);
-        inputEl.appendChild(newOption);
-        if (input.id === currentInput) {
-          inputEl.value = input.id;
-        }
-      }
-    });
-    socket.on('available_outputs', function(outputs){
-      console.log('available_outputs', outputs);
-      var outputEl = document.getElementById('output');
-      // remove current values
-      while (outputEl.firstChild) {
-        outputEl.removeChild(outputEl.firstChild);
-      }
-      for (var output of outputs){
-        var newOption = document.createElement('option');
-        newOption.innerText = output.name;
-        newOption.setAttribute('value', output.id);
-        outputEl.appendChild(newOption);
-        if (output.id === currentOutput) {
-          outputEl.value = output.id;
-        }
-      }
-    });
+    // var socket = io();
+    // var currentInput = "void";
+    // var currentOutput = "void";
+    // socket.on('switched_input', function(newInput){
+    //   console.log('switched_input', newInput);
+    //   if (currentInput !== newInput){
+    //     currentInput = newInput;
+    //     var inputEl = document.getElementById('input');
+    //     inputEl.value = newInput;
+    //   };
+    // });
+    // socket.on('switched_output', function(newOutput){
+    //   console.log('switched_output', newOutput);
+    //   if (currentOutput !== newOutput){
+    //     currentOutput = newOutput;
+    //     var outputEl = document.getElementById('output');
+    //     outputEl.value = newOutput;
+    //   }
+    // });
+    // socket.on('changed_output_volume', function(volume){
+    //   console.log('changed_output_volume', volume);
+    //   var outputVolumeEl = document.getElementById('outputVolume');
+    //   outputVolumeEl.value = volume;
+    // });
+    // socket.on('available_inputs', function(inputs){
+    //   console.log('available_inputs', inputs);
+    //   var inputEl = document.getElementById('input');
+    //   // remove current values
+    //   while (inputEl.firstChild) {
+    //     inputEl.removeChild(inputEl.firstChild);
+    //   }
+    //   for (var input of inputs){
+    //     var newOption = document.createElement('option');
+    //     newOption.innerText = input.name;
+    //     newOption.setAttribute('value', input.id);
+    //     inputEl.appendChild(newOption);
+    //     if (input.id === currentInput) {
+    //       inputEl.value = input.id;
+    //     }
+    //   }
+    // });
+    // socket.on('available_outputs', function(outputs){
+    //   console.log('available_outputs', outputs);
+    //   var outputEl = document.getElementById('output');
+    //   // remove current values
+    //   while (outputEl.firstChild) {
+    //     outputEl.removeChild(outputEl.firstChild);
+    //   }
+    //   for (var output of outputs){
+    //     var newOption = document.createElement('option');
+    //     newOption.innerText = output.name;
+    //     newOption.setAttribute('value', output.id);
+    //     outputEl.appendChild(newOption);
+    //     if (output.id === currentOutput) {
+    //       outputEl.value = output.id;
+    //     }
+    //   }
+    // });
 
     document.addEventListener('change', async ev => {
       if(ev.target.id === 'input') {
@@ -187,6 +194,20 @@
       }
       if(ev.target.id === 'outputVolume') {
         socket.emit('change_output_volume', ev.target.value);
+      }
+    });
+
+    document.addEventListener('click', async ev => {
+      if (ev.target.id === 'restart') {
+        if (confirm('Are you sure you want to restart?')) {
+          socket.emit('restart', ev.target.value);
+        }
+      }
+
+      if (ev.target.id === 'shutdown') {
+        if (confirm('Are you sure you want to shutdown?')) {
+          socket.emit('shutdown', ev.target.value);
+        }
       }
     });
   </script>
