@@ -291,6 +291,16 @@ io.on('connection', function(socket) {
     switchInput(msg);
     io.emit('switched_input', msg);
   });
+
+  socket.on('shutdown', function(msg) {
+    console.log('shutting down the system');
+    exec("shutdown -h now");
+  });
+
+  socket.on('restart', function(msg) {
+    console.log('restarting the system');
+    exec("reboot");
+  });
 });
 
 http.listen(3000, function(){
