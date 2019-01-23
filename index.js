@@ -8,6 +8,7 @@ var stream = require('stream');
 var mdns = require('mdns-js');
 var blue = require("bluetoothctl");
 var fs = require('fs');
+var { exec } = require('child_process');
 
 var defaultInputId = "plughw:1,0";
 var defaultOutputId = "plughw:0,1";
